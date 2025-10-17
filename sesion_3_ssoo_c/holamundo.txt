@@ -1,0 +1,4 @@
+La opción: 0 es ./ejecutableHolaMundo 
+La opción: 1 es Hola 
+La opción: 2 es Mundo 
+Hola Mundo! 
