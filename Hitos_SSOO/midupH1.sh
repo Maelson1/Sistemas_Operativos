@@ -53,11 +53,9 @@ for elemento in "${directorios[@]}"; do #busca elementos dentro del array direct
                 echo -e "${nombre}${TAB}${ruta}${TAB}${tamano} bytes" #imprimes el nombre, la ruta y el tamaño
             fi
         done
-    elif ! [ -d "$elemento" ]; then #si el elemento dentro del array no es un directorio o no existe, imprimes un error
-        echo "La ruta $elemento no es un directorio válido."
+    else #si el elemento dentro del array no es un directorio o no existe, imprimes un error
+        echo "La ruta $elemento no es un directorio válido o no existe."
         exit 1
-    else
-        echo "No se han encontrado archivos en $elemento"
     fi
 done | sort -t$'\t' -k1,1 #conectas la salida del bucle con el comando sort para ordenarlos alfabéticamente
 }
@@ -65,19 +63,19 @@ done | sort -t$'\t' -k1,1 #conectas la salida del bucle con el comando sort para
 #Vamos a establecer una serie de controles antes de que el programa pueda ejecutarse de manera correcta
 
 #control para profundidad
-if [ -z "$profundidad" ] && ! [[ "$profundidad" =~ ^[0-9]+$ ]]; then
+if [ -n "$profundidad" ] && ! [[ "$profundidad" =~ ^[0-9]+$ ]]; then
     echo "Lo siento, introduzca un valor válido para profundidad (-p) en el próximo intento."
     exit 1
 fi
 
 #control para precision
-if [ -z "$precision" ] && ! [[ "$precision" =~ ^[0-9]+$ ]]; then
+if [ -n "$precision" ] && ! [[ "$precision" =~ ^[0-9]+$ ]]; then
     echo "Lo siento, introduzca un valor válido para precisión (-l) en el próximo intento."
     exit 1
 fi
 
 #control para bytes
-if [ -z "$bytes" ] && ! [[ "$bytes" =~ ^[0-9]+$ ]]; then
+if [ -n "$bytes" ] && ! [[ "$bytes" =~ ^[0-9]+$ ]]; then
     echo "Lo siento, introduzca un valor válido para bytes (-s) en el próximo intento."
     exit 1
 fi
