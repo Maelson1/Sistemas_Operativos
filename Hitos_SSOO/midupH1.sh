@@ -40,43 +40,52 @@ echo "Nivel de profundidad: $profundidad"
 echo "Nivel de precisión: $precision"
 echo "Tamaño mínimo en bytes: $bytes"
 echo "Rutas a procesar: ${directorios[*]}"
+echo ""
 
-for dir in "${directorios[@]}"; do
-    if [ -d "$dir"]; then
-        for archivo in "$dir"/*; do
-            if [ -f "$archivo" ]; then
-                nombre=$(basename "$archivo")
-                ruta=$(realpath "$archivo")
-                tamano=$(stat -c%s "$archivo")
-                echo -e "${nombre}${TAB}${ruta}${TAB}${tamano} bytes"
+bucle_principal(){
+for elemento in "${directorios[@]}"; do #busca elementos dentro del array directorios
+    if [ -d "$elemento" ]; then #si el elemento es un directorio, haz lo siguiente:
+        for archivo in "$elemento"/*; do #para cada archivo dentro del directorio(elemento),
+            if [ -f "$archivo" ]; then #si es un archivo, entonces:
+                nombre=$(basename "$archivo") #asignas nombre
+                ruta=$(realpath "$archivo") #asignas la ruta
+                tamano=$(stat -c%s "$archivo") #asignas el tamaño
+                echo -e "${nombre}${TAB}${ruta}${TAB}${tamano} bytes" #imprimes el nombre, la ruta y el tamaño
             fi
         done
-    else
-        echo "La ruta $dir no es un directorio válido."
+    else #si el elemento dentro del array no es un directorio o no existe, imprimes un error
+        echo "La ruta $elemento no es un directorio válido."
+        exit 1
     fi
-done | sort -t$'\t' -k1,1
+done | sort -t$'\t' -k1,1 #conectas la salida del bucle con el comando sort para ordenarlos alfabéticamente
+}
 
 #Vamos a establecer una serie de controles antes de que el programa pueda ejecutarse de manera correcta
 
 #control para profundidad
-if [ -n "$profundidad" ] &&! [[ "$profundidad" =~ ^[0-9]+$ ]]; then
+if [ -z "$profundidad" ] &&! [[ "$profundidad" =~ ^[0-9]+$ ]]; then
     echo "Lo siento, introduzca un valor válido para profundidad (-p) en el próximo intento."
     exit 1
 fi
 
 #control para precision
-if [ -n "$precision" ] &&! [[ "$precision" =~ ^[0-9]+$ ]]; then
-    echo "Lo siento, introduzca un valor válido para profundidad (-p) en el próximo intento."
+if [ -z "$precision" ] &&! [[ "$precision" =~ ^[0-9]+$ ]]; then
+    echo "Lo siento, introduzca un valor válido para precisión (-l) en el próximo intento."
     exit 1
 fi
 
 #control para bytes
-if [ -n "$bytes" ] &&! [[ "$bytes" =~ ^[0-9]+$ ]]; then
+if [ -z "$bytes" ] &&! [[ "$bytes" =~ ^[0-9]+$ ]]; then
     echo "Lo siento, introduzca un valor válido para bytes (-s) en el próximo intento."
     exit 1
 fi
+
 #control para rutas
-if [${directorios[@]} -eq 0]; then
-    then $directorios=("./")
+if [ -z "${directorios[*]}" ]; then
+    directorios=("./")
     echo "No se ha detectado ninguna ruta, se usará la ruta actual por defecto."
+    echo ""
+    bucle_principal
+    exit 0
 fi
+bucle_principal
