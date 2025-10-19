@@ -9,7 +9,7 @@ directorios=()
 #Definimos el tabulador para usarlo en la impresión por consola
 TAB=$'\t'
 
-bucle_recursivo(){ #Iniciamos un bucle while, el cual parseará los argumentos introducidos mediante la ejecución 
+parseo_variables(){ #Iniciamos un bucle while, el cual parseará los argumentos introducidos mediante la ejecución 
 while [ $# -gt 0 ]; do #El bucle leerá la cantidad de argumentos introducidos mediante $# y lo comparará con -gt (mayor que) 0, esto quiere decir que cuando la variable sea 0, el bucle se detiene
     recursiva="$1"
     case "$recursiva" in 
@@ -33,7 +33,7 @@ while [ $# -gt 0 ]; do #El bucle leerá la cantidad de argumentos introducidos m
 done
 }
 
-bucle_recursivo "$@"
+parseo_variables "$@"
 
 #Imprimimos por consola los datos de las variables introducidas
 echo "Nivel de profundidad: $profundidad"
