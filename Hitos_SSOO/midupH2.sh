@@ -21,21 +21,37 @@ while [ $# -gt 0 ]; do #El bucle leerá la cantidad de argumentos introducidos m
     recursiva="$1" #copia el argumento actual para guardarlo en case
     case "$recursiva" in 
         -p)
-            profundidad="$2" #primera variable a procesar, las siguientes irán usandose de manera recursiva
-            shift 2 #corremos a la izquierda 2 variables para no precesar la misma 
+            shift
+            profundidad="$1"
+            if ! [[ "$profundidad" =~ ^[0-9]+$ ]]; then
+                echo "El valor de profundidad debe ser un número"
+                exit 1
+            fi
             ;;
         -l)
-            precision="$2" 
-            shift 2
+            shift
+            precision="$1"
+            if ! [[ "$precision" =~ ^[1-2]$ ]]; then
+                echo "El valor de precisión debe ser 1 o 2"
+                exit 1
+            fi
             ;;
         -s)
-            bytes="$2"
-            shift 2
+            shift
+            bytes="$1"
+            if ! [[ "$bytes" =~ ^[0-9]+$ ]]; then
+                echo "El tamaño debe ser un número"
+                exit 1
+            fi
             ;;
         *)
-            directorios+=("$1")
-            shift
-            ;;
+            if [ -d "$recursiva" ]; then
+                directorios+=("$recursiva")
+            else
+                echo "El directorio $recursiva no existe"
+                exit 1
+                fi
+                ;;
     esac
 done
 }
@@ -62,16 +78,13 @@ explorar(){
             nombre=$(basename "$elemento") #declarar nombre mediante basename al elemento (archivo)
             tamano=$(stat -c%s "$elemento") #declarar tamaño mediante -c%s al elemento (archivo)
             ruta=$(realpath "$elemento")
-            if [ "$tamano" -ge "$bytes" ] && [ "$tamano" -le "$max_bytes" ]; then #si el tamaño (bytes) cumple con los limites establecidos
-                string_archivos_desordenado="${nombre}${TAB}(${tamano} bytes)${BLINK}${ruta}${BLINK}" #almacenar nombre y tamaño en archivo
-                string_archivos_ordenados=$(sort -t$'\t' -k1,1 <<< "$string_archivos_desordenado")
-                array_de_string+=("$string_archivos_ordenados")
-            fi
-        fi
-    done
 
-    for elemento in "$dir"/*; do
-        explorar "$elemento" $((nivel +1))
+            if [ "$tamano" -ge "$bytes" ] && [ "$tamano" -le "$max_bytes" ]; then #si el tamaño (bytes) cumple con los limites establecidos
+                array_de_string+=("$nombre ($tamano bytes):$BLINK$TAB$ruta")
+            fi
+        elif [ -d "$elemento" ]; then
+            explorar "$elemento" $((nivel + 1))
+        fi
     done
 }
 
@@ -89,39 +102,63 @@ array_to_string(){
 string_to_array_l1(){
     local -n array_result=$1
     local string_entry=$2
-    local total_lineas
-    total_lineas=$(wc -l <<< "$string_entry")
-
-    array_result=()
-
-    for (( i=1; i<total_lineas; i++)); do
-        linea=$(cut -d $'\n' -f "$i" <<< "$string_entry")
-        if [[ "$linea" == *"$bytes"* ]]; then
-            nombre=$(cut -f1 <<< "$linea")
-            array_result+=("$nombre")
+    local nombre_actual=""
+    local rutas=()
+    
+    while read -r linea; do
+        if [[ $linea == *"bytes):"* ]]; then
+            if [ ${#rutas[@]} -gt 1 ]; then
+                array_result+=("$nombre_actual")
+                for ruta in "${rutas[@]}"; do
+                    array_result+=("$ruta")
+                done
+            fi
+            nombre_actual="$linea"
+            rutas=()
+        else
+            rutas+=("$linea")
         fi
-    done
-
-    echo "${array_result[@]}"
+    done < <(echo "$string_entry")
+    
+    if [ ${#rutas[@]} -gt 1 ]; then
+        array_result+=("$nombre_actual")
+        for ruta in "${rutas[@]}"; do
+            array_result+=("$ruta")
+        done
+    fi
 }
 
 string_to_array_l2(){
     local -n array_result=$1
     local string_entry=$2
-    local total_lineas
-
-    total_lineas=$(wc -l <<< "$string_entry")
-    array_result=()
-
-    for (( i=1; i<total_lineas; i++)); do
-        linea=$(cut -d $'\n' -f "$i" <<< "$string_entry")
-        if [[ "$linea" == *"$bytes"* ]]; then
-            nombre=$(cut -f1 <<< "$linea")
-            array_result+=("${linea}")
+    local nombre_actual=""
+    local tamano_actual=""
+    local rutas=()
+    
+    while read -r linea; do
+        if [[ $linea == *"bytes):"* ]]; then
+            if [ ${#rutas[@]} -gt 1 ]; then
+                if [ -n "$nombre_actual" ]; then
+                    array_result+=("$nombre_actual ($tamano_actual bytes):")
+                    for ruta in "${rutas[@]}"; do
+                        array_result+=("$TAB$ruta")
+                    done
+                fi
+            fi
+            nombre_actual=$(echo "$linea" | cut -d '(' -f1 | tr -d ' ')
+            tamano_actual=$(echo "$linea" | grep -o '[0-9]\+')
+            rutas=()
+        else
+            rutas+=("$linea")
         fi
-    done
-
-    echo "${array_result[@]}"
+    done < <(echo "$string_entry")
+    
+    if [ ${#rutas[@]} -gt 1 ]; then
+        array_result+=("$nombre_actual ($tamano_actual bytes):")
+        for ruta in "${rutas[@]}"; do
+            array_result+=("$TAB$ruta")
+        done
+    fi
 }
 
 #para Cosmin
