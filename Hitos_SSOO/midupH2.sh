@@ -5,6 +5,7 @@ profundidad=""
 precision=""
 bytes=""
 directorios=()
+array_de_string=()
 
 #establecemos limites para las variables
 profundidad_maxima=9
@@ -13,6 +14,7 @@ max_bytes=2097152
 
 #Definimos el tabulador para usarlo en la impresión por consola
 TAB=$'\t'
+BLINK=$'\n'
 
 parseo_variables(){ #Iniciamos un bucle while, el cual parseará los argumentos introducidos mediante la ejecución 
 while [ $# -gt 0 ]; do #El bucle leerá la cantidad de argumentos introducidos mediante $# y lo comparará con -gt (mayor que) 0, esto quiere decir que cuando la variable sea 0, el bucle se detiene
@@ -61,7 +63,9 @@ explorar(){
             tamano=$(stat -c%s "$elemento") #declarar tamaño mediante -c%s al elemento (archivo)
             ruta=$(realpath "$elemento")
             if [ "$tamano" -ge "$bytes" ] && [ "$tamano" -le "$max_bytes" ]; then #si el tamaño (bytes) cumple con los limites establecidos
-                echo "${nombre}${TAB}(${tamano} bytes):" #imprimir su nombre y su tamaño
+                string_archivos_desordenado="${nombre}${TAB}(${tamano} bytes)${BLINK}${ruta}${BLINK}" #almacenar nombre y tamaño en archivo
+                string_archivos_ordenados=$(sort -t$'\t' -k1,1 <<< "$string_archivos_desordenado")
+                array_de_string+=("$string_archivos_ordenados")
             fi
         fi
     done
@@ -69,6 +73,55 @@ explorar(){
     for elemento in "$dir"/*; do
         explorar "$elemento" $((nivel +1))
     done
+}
+
+array_to_string(){
+    local -n array_ref=$1
+    local resultado=""
+
+    for elemento in "${array_ref[@]}"; do
+    resultado+="$elemento"$'\n'
+    done
+    
+    echo -n "$resultado"
+}
+
+string_to_array_l1(){
+    local -n array_result=$1
+    local string_entry=$2
+    local total_lineas
+    total_lineas=$(wc -l <<< "$string_entry")
+
+    array_result=()
+
+    for (( i=1; i<total_lineas; i++)); do
+        linea=$(cut -d $'\n' -f "$i" <<< "$string_entry")
+        if [[ "$linea" == *"$bytes"* ]]; then
+            nombre=$(cut -f1 <<< "$linea")
+            array_result+=("$nombre")
+        fi
+    done
+
+    echo "${array_result[@]}"
+}
+
+string_to_array_l2(){
+    local -n array_result=$1
+    local string_entry=$2
+    local total_lineas
+
+    total_lineas=$(wc -l <<< "$string_entry")
+    array_result=()
+
+    for (( i=1; i<total_lineas; i++)); do
+        linea=$(cut -d $'\n' -f "$i" <<< "$string_entry")
+        if [[ "$linea" == *"$bytes"* ]]; then
+            nombre=$(cut -f1 <<< "$linea")
+            array_result+=("${linea}")
+        fi
+    done
+
+    echo "${array_result[@]}"
 }
 
 #para Cosmin
@@ -92,3 +145,24 @@ fi
 for dir in "${directorios[@]}"; do
     explorar "$dir" 0
 done
+
+mi_string=$(array_to_string array_de_string)
+echo "$mi_string"
+
+if [ "$precision" -gt "$precision_maxima" ]; then
+    echo "Ha superado el nivel de precision máxima"
+elif [ "$precision" -eq 1 ]; then
+        nuevo_array=()
+    string_to_array_l1 nuevo_array "$mi_string"
+    for elemento in "${nuevo_array[@]}"; do
+        echo "$elemento"
+    done
+elif [ "$precision" -eq 2 ]; then
+    nuevo_array=()
+    string_to_array_l2 nuevo_array "$mi_string"
+    for elemento in "${nuevo_array[@]}"; do
+        echo "$elemento"
+    done
+else
+    echo "Valor no válido para -l (precision), por favor asigne un valor entre 1 y 2"
+fi
