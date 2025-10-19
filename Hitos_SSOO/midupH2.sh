@@ -6,7 +6,6 @@ precision=""
 bytes=""
 directorios=()
 array_de_strings=()
-archivos_ordenados=()
 
 #establecemos limites para las variables
 profundidad_maxima=9
@@ -44,36 +43,38 @@ done
 parseo_variables "$@"
 
 ordenar_archivos(){
-    local -n archivos_ordenados=$1
+    local -n arr_ref=$1
+    arr_ref=()
     while read -r linea; do
-        archivos_ordenados+=("$linea")
+        arr_ref+=("$linea")
     done < <(printf '%s\n' "${array_de_strings[@]}" | sort -t$'\t' -k1,1)
 }
 buscar_duplicados_l1(){
-    local -n archivos_ordenados=$1
+    local -n arr_ref=$1
+    arr_ref=()
     local nombre_anterior=""
     local elemento_anterior=""
 
-    for elemento in "${archivos_ordenados[@]}"; do
-        nombre_actual=$(cut -d$'\t' -f1 <<< "$elemento") #extraemos el nombre del archivo actual
+    for elemento in "${arr_ref[@]}"; do
+        nombre_actual=$(cut -d$'\t' -f1 <<< "$elemento" | tr -d ':') #extraemos el nombre del archivo actual
         if [ "$nombre_actual" = "$nombre_anterior" ]; then #comparamos el nombre actual con el anterior
-            echo -e "Archivo duplicado encontrado:${BLINK}${elemento}${BLINK}${elemento_anterior}${BLINK}"
+            echo -e "${elemento}${BLINK}${elemento_anterior}${BLINK}"
         fi
         nombre_anterior="$nombre_actual" #actualizamos el nombre anterior al actual para la siguiente iteración
         elemento_anterior="$elemento" #actualizamos el elemento anterior al actual para la siguiente iteración
     done
 }
 buscar_duplicados_l2(){
-    local -n archivos_ordenados=$1
+    local -n arr_ref=$1
     local nombre_anterior=""
     local elemento_anterior=""
 
-    for elemento in "${archivos_ordenados[@]}"; do
+    for elemento in "${arr_ref[@]}"; do
         nombre_actual=$(cut -d$'\t' -f1 <<< "$elemento") #extraemos el nombre del archivo actual
         tamano_actual=$(cut -d$'\t' -f2 <<< "$elemento" | tr -d '() bytes:') #extraemos el tamaño del archivo actual
         tamano_anterior=$(cut -d$'\t' -f2 <<< "$elemento_anterior" | tr -d '() bytes:') #extraemos el tamaño del archivo anterior
         if [ "$nombre_actual" = "$nombre_anterior" ] && [ "$tamano_actual" = "$tamano_anterior" ]; then #comparamos el nombre actual con el anterior y el tamaño actual con el anterior
-            echo -e "Archivo duplicado encontrado:${BLINK}${elemento}${BLINK}${elemento_anterior}${BLINK}"
+            echo -e "${elemento}${BLINK}${elemento_anterior}${BLINK}"
         fi
         nombre_anterior="$nombre_actual" #actualizamos el nombre anterior al actual para la siguiente iteración
         elemento_anterior="$elemento" #actualizamos el elemento anterior al actual para la siguiente iteración
@@ -124,7 +125,7 @@ explorar(){
     done
 }
 
-#para Cosmin
+#para Cosmin (lo di todo para estos 2 hitos :/ )
 if [ "${directorios[*]}" = "patata" ]; then
     echo "patata"
     exit 0
@@ -135,21 +136,15 @@ if [ -z "$bytes" ]; then
     exit 1
     fi
 
-if [ -z "${directorios[*]}" ]; then
-    directorios=(./)
-    echo ""
-    echo "Se ejecutará en el directorio actual:"
-    echo ""
-fi
-
 for dir in "${directorios[@]}"; do
     explorar "$dir" 0
 done
 
 ordenar_archivos archivos_ordenados
+
 if [ "$precision" = "1" ]; then
     buscar_duplicados_l1 archivos_ordenados
-elif [ "$precision" = "2" ]; then
+elif [ "$precision" = "$precision_maxima" ]; then
     buscar_duplicados_l2 archivos_ordenados
 else
     echo "No se ha especificado un nivel de precisión válido (l1 o l2)"
