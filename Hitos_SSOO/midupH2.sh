@@ -5,6 +5,8 @@ profundidad=""
 precision=""
 bytes=""
 directorios=()
+array_de_strings=()
+archivos_ordenados=()
 
 #establecemos limites para las variables
 profundidad_maxima=9
@@ -13,6 +15,7 @@ max_bytes=2097152
 
 #Definimos el tabulador para usarlo en la impresión por consola
 TAB=$'\t'
+BLINK=$'\n'
 
 parseo_variables(){ #Iniciamos un bucle while, el cual parseará los argumentos introducidos mediante la ejecución 
 while [ $# -gt 0 ]; do #El bucle leerá la cantidad de argumentos introducidos mediante $# y lo comparará con -gt (mayor que) 0, esto quiere decir que cuando la variable sea 0, el bucle se detiene
@@ -40,6 +43,55 @@ done
 
 parseo_variables "$@"
 
+ordenar_archivos(){
+    local -n archivos_ordenados=$1
+    while read -r linea; do
+        archivos_ordenados+=("$linea")
+    done < <(printf '%s\n' "${array_de_strings[@]}" | sort -t$'\t' -k1,1)
+}
+buscar_duplicados_l1(){
+    local -n archivos_ordenados=$1
+    local nombre_anterior=""
+    local elemento_anterior=""
+
+    for elemento in "${archivos_ordenados[@]}"; do
+        nombre_actual=$(cut -d$'\t' -f1 <<< "$elemento") #extraemos el nombre del archivo actual
+        if [ "$nombre_actual" = "$nombre_anterior" ]; then #comparamos el nombre actual con el anterior
+            echo -e "Archivo duplicado encontrado:${BLINK}${elemento}${BLINK}${elemento_anterior}${BLINK}"
+        fi
+        nombre_anterior="$nombre_actual" #actualizamos el nombre anterior al actual para la siguiente iteración
+        elemento_anterior="$elemento" #actualizamos el elemento anterior al actual para la siguiente iteración
+    done
+}
+buscar_duplicados_l2(){
+    local -n archivos_ordenados=$1
+    local nombre_anterior=""
+    local elemento_anterior=""
+
+    for elemento in "${archivos_ordenados[@]}"; do
+        nombre_actual=$(cut -d$'\t' -f1 <<< "$elemento") #extraemos el nombre del archivo actual
+        tamano_actual=$(cut -d$'\t' -f2 <<< "$elemento" | tr -d '() bytes:') #extraemos el tamaño del archivo actual
+        tamano_anterior=$(cut -d$'\t' -f2 <<< "$elemento_anterior" | tr -d '() bytes:') #extraemos el tamaño del archivo anterior
+        if [ "$nombre_actual" = "$nombre_anterior" ] && [ "$tamano_actual" = "$tamano_anterior" ]; then #comparamos el nombre actual con el anterior y el tamaño actual con el anterior
+            echo -e "Archivo duplicado encontrado:${BLINK}${elemento}${BLINK}${elemento_anterior}${BLINK}"
+        fi
+        nombre_anterior="$nombre_actual" #actualizamos el nombre anterior al actual para la siguiente iteración
+        elemento_anterior="$elemento" #actualizamos el elemento anterior al actual para la siguiente iteración
+    done
+}
+string_to_array(){
+    local -n array_resultado=$1
+    local string_entrada="$2"
+
+    array_resultado=() #inicializamos el array como vacío
+
+    local total_lineas=$(wc -l <<< "$string_entrada") #contamos el número de líneas del string de entrada
+
+    for (( i=1; i<=total_lineas; i++ )); do
+        local linea=$(sed -n "${i}p" <<< "$string_entrada") #extraemos cada línea del string de entrada
+        array_resultado+=("$linea") #añadimos la línea al array
+    done
+}
 explorar(){
     local dir=$1 #declaramos una variable local para que lea los directorios del array
     local nivel=$2 #declaramos que existe un nivel de profundidad
@@ -61,7 +113,8 @@ explorar(){
             tamano=$(stat -c%s "$elemento") #declarar tamaño mediante -c%s al elemento (archivo)
             ruta=$(realpath "$elemento")
             if [ "$tamano" -ge "$bytes" ] && [ "$tamano" -le "$max_bytes" ]; then #si el tamaño (bytes) cumple con los limites establecidos
-                echo "${nombre}${TAB}(${tamano} bytes):" #imprimir su nombre y su tamaño
+                string_archivos="${nombre}${TAB}(${tamano} bytes):" #acumular en el string su nombre y su tamaño
+                array_de_strings+=("$string_archivos ${TAB}${ruta}") #añadir al array el string creado junto con la ruta del archivo
             fi
         fi
     done
@@ -92,3 +145,13 @@ fi
 for dir in "${directorios[@]}"; do
     explorar "$dir" 0
 done
+
+ordenar_archivos archivos_ordenados
+if [ "$precision" = "1" ]; then
+    buscar_duplicados_l1 archivos_ordenados
+elif [ "$precision" = "2" ]; then
+    buscar_duplicados_l2 archivos_ordenados
+else
+    echo "No se ha especificado un nivel de precisión válido (l1 o l2)"
+    exit 1
+fi
