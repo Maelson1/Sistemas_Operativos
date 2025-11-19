@@ -141,6 +141,8 @@ for dir in "${directorios[@]}"; do
 done
 
 ordenar_archivos archivos_ordenados
+array_to_string archivos_ordenados_string archivos_ordenados
+
 
 if [ "$precision" = "1" ]; then
     buscar_duplicados_l1 archivos_ordenados
